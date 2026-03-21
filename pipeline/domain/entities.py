@@ -31,6 +31,7 @@ class Address:
     city: Optional[str] = None
     postcode: Optional[str] = None
     country: Optional[str] = None
+    full_address: Optional[str] = None
 
 @dataclass
 class EnrichedSolarReading:

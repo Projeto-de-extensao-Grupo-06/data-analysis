@@ -117,6 +117,7 @@ class LocalStorageProvider(StorageProvider):
                 "bairro": e.address.suburb,
                 "rua": e.address.road,
                 "codigo_postal": e.address.postcode,
+                "endereco_completo": e.address.full_address,
                 "anual": e.reading.annual,
                 **e.reading.monthly_data,
                 **{f"media_{k}": v for k, v in e.seasons_avg.items()}

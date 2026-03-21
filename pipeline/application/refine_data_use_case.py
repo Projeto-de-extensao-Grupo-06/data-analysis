@@ -15,31 +15,31 @@ class RefineDataUseCase:
         self.storage = storage
         self.geocoder = geocoder
 
-    def execute(self, source_path: str, target_path: str, limit: int = None):
+    def execute(self, source_path: str, target_path: str):
         """
         Executa o processo de refinamento: geocodificação e cálculo de médias sazonais.
         """
         readings = self.storage.load_trusted(source_path)
-        
-        if limit:
-            readings = readings[:limit]
-            print(f"[{time.strftime('%H:%M:%S')}] [Refine] Limitando a {limit} registros para teste.")
-
         enriched_list = []
 
         for r in readings:
             # Geocodificação Reversa
             geo_data = self.geocoder.reverse_geocode(r.lat, r.lon)
             address = Address()
-            if geo_data and 'address' in geo_data:
-                addr = geo_data['address']
+            if geo_data:
+                addr = geo_data.get('address', {})
                 address = Address(
-                    road=addr.get('road') or addr.get('street'),
-                    suburb=addr.get('suburb') or addr.get('neighbourhood'),
+                    road=addr.get('road') or addr.get('street') or addr.get('pedestrian'),
+                    suburb=addr.get('suburb') or addr.get('neighbourhood') or addr.get('hamlet'),
                     city=addr.get('city') or addr.get('town') or addr.get('village') or addr.get('municipality'),
                     postcode=addr.get('postcode'),
-                    country=addr.get('country')
+                    country=addr.get('country'),
+                    full_address=geo_data.get('display_name')
                 )
+
+            if not address.postcode:
+                print(f"[{time.strftime('%H:%M:%S')}] [Refine] Pulando {r.id}: CEP não encontrado.")
+                continue
             
             # Cálculo de Médias por Estação
             seasons = self._calculate_seasons(r.monthly_data)
