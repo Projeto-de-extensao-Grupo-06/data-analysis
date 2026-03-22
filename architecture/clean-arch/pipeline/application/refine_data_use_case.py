@@ -31,17 +31,21 @@ class RefineDataUseCase:
                 address = Address(
                     road=addr.get('road') or addr.get('street') or addr.get('pedestrian'),
                     suburb=addr.get('suburb') or addr.get('neighbourhood') or addr.get('hamlet'),
-                    city=addr.get('city') or addr.get('town') or addr.get('village') or addr.get('municipality'),
+                    city=addr.get('city') or addr.get('city_district') or addr.get('town') or addr.get('village') or addr.get('municipality'),
                     postcode=addr.get('postcode'),
                     country=addr.get('country'),
                     full_address=geo_data.get('display_name')
                 )
 
             if not address.postcode:
-                print(f"[{time.strftime('%H:%M:%S')}] [Refine] Pulando {r.id}: CEP não encontrado.")
+                print(f"[{time.strftime('%H:%M:%S')}] [Refine] Pulando {r.id}: CEP (postcode) não encontrado.")
+                continue
+
+            if not address.suburb:
+                print(f"[{time.strftime('%H:%M:%S')}] [Refine] Pulando {r.id}: Bairro (suburb) não encontrado.")
                 continue
             
-            # Cálculo de Médias por Estação
+            # Cálculo de médias por Estação
             seasons = self._calculate_seasons(r.monthly_data)
             
             enriched = EnrichedSolarReading(
@@ -58,8 +62,8 @@ class RefineDataUseCase:
         Calcula as médias de irradiação por estação do ano.
         """
         return {
-            "verao": (monthly_data.get("JAN", 0) + monthly_data.get("FEB", 0) + monthly_data.get("DEC", 0)) / 3,
-            "outono": (monthly_data.get("MAR", 0) + monthly_data.get("APR", 0) + monthly_data.get("MAY", 0)) / 3,
-            "inverno": (monthly_data.get("JUN", 0) + monthly_data.get("JUL", 0) + monthly_data.get("AUG", 0)) / 3,
-            "primavera": (monthly_data.get("SEP", 0) + monthly_data.get("OCT", 0) + monthly_data.get("NOV", 0)) / 3
+            "summer": round((monthly_data.get("JAN", 0) + monthly_data.get("FEB", 0) + monthly_data.get("DEC", 0)) / 3, 1),
+            "autumn": round((monthly_data.get("MAR", 0) + monthly_data.get("APR", 0) + monthly_data.get("MAY", 0)) / 3, 1),
+            "winter": round((monthly_data.get("JUN", 0) + monthly_data.get("JUL", 0) + monthly_data.get("AUG", 0)) / 3, 1),
+            "spring": round((monthly_data.get("SEP", 0) + monthly_data.get("OCT", 0) + monthly_data.get("NOV", 0)) / 3, 1)
         }

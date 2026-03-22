@@ -8,14 +8,14 @@ class SolarReading:
     
     Atributos:
         id: Identificador único da medição.
-        uf: Estado (Unidade da Federação).
+        state: Estado (Unidade da Federação).
         lon: Longitude.
         lat: Latitude.
         annual: Média anual de irradiação.
         monthly_data: Dicionário contendo as médias mensais (JAN-DEC).
     """
     id: int
-    uf: str
+    state: str
     lon: float
     lat: float
     annual: float

@@ -55,7 +55,7 @@ class LocalStorageProvider(StorageProvider):
         for _, row in df.iterrows():
             monthly = {month: float(row[month]) for month in ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']}
             readings.append(SolarReading(
-                id=int(row['ID']), uf=row['UF'], lon=float(row['LON']), lat=float(row['LAT']),
+                id=int(row['ID']), state=row['UF'], lon=float(row['LON']), lat=float(row['LAT']),
                 annual=float(row['ANNUAL']), monthly_data=monthly
             ))
         return readings
@@ -106,7 +106,7 @@ class LocalStorageProvider(StorageProvider):
         """Helper para carregar um arquivo JSON da Trusted."""
         df = pd.read_json(file_path)
         return [SolarReading(
-            id=int(d['id']), uf=d['uf'], lon=float(d['lon']), lat=float(d['lat']),
+            id=int(d['id']), state=d.get('state') or d.get('uf'), lon=float(d['lon']), lat=float(d['lat']),
             annual=float(d['annual']), monthly_data=d['monthly_data']
         ) for d in df.to_dict('records')]
 
@@ -127,14 +127,14 @@ class LocalStorageProvider(StorageProvider):
                 "id": e.reading.id,
                 "lat": e.reading.lat,
                 "lon": e.reading.lon,
-                "cidade": e.address.city,
-                "bairro": e.address.suburb,
-                "rua": e.address.road,
-                "codigo_postal": e.address.postcode,
-                "endereco_completo": e.address.full_address,
-                "anual": e.reading.annual,
+                "city": e.address.city,
+                "suburb": e.address.suburb,
+                "road": e.address.road,
+                "postcode": e.address.postcode,
+                "full_address": e.address.full_address,
+                "annual": e.reading.annual,
                 **e.reading.monthly_data,
-                **{f"media_{k}": v for k, v in e.seasons_avg.items()}
+                **{f"{k}_avg": v for k, v in e.seasons_avg.items()}
             })
 
         df = pd.DataFrame(flat_data)
@@ -148,8 +148,8 @@ class LocalStorageProvider(StorageProvider):
         Registra o nome do arquivo no log oculto de processados no diretório do arquivo.
         """
         directory = os.path.dirname(file_path)
-        file_name = os.path.basename(source_path)
-        processed_log = os.path.join(raw_dir, ".processed")
+        file_name = os.path.basename(file_path)
+        processed_log = os.path.join(directory, ".processed")
         
         with open(processed_log, 'a') as f:
             f.write(f"{file_name}\n")
@@ -158,7 +158,7 @@ class LocalStorageProvider(StorageProvider):
         """Converte uma entidade para dicionário."""
         return {
             "id": r.id,
-            "uf": r.uf,
+            "state": r.state,
             "lon": r.lon,
             "lat": r.lat,
             "annual": r.annual,

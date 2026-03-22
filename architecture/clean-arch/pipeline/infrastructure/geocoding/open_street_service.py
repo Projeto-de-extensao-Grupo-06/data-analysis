@@ -4,21 +4,21 @@ import time
 from typing import Optional
 from pipeline.domain.interfaces import GeocodingService
 
-class NominatimService(GeocodingService):
+class OpenStreetService(GeocodingService):
     """
-    Serviço de geocodificação reversa utilizando a API Nominatim (OpenStreetMap).
+    Serviço de geocodificação reversa utilizando a API OpenStreetMap.
     """
 
     def __init__(self, user_agent: str = "SolarIrradiationPipeline/1.0"):
         """
-        Inicializa o serviço com um User-Agent (obrigatório pela política do Nominatim).
+        Inicializa o serviço com um User-Agent.
         """
         self.user_agent = user_agent
         self.base_url = "https://nominatim.openstreetmap.org/reverse?format=json"
 
     def reverse_geocode(self, lat: float, lon: float) -> Optional[dict]:
         """
-        Solicita informações de endereço para o Nominatim.
+        Solicita informações de endereço para o OpenStreetMap.
         Nota: Inclui um delay simples para respeitar os limites de taxa (1 req/sec).
         """
         url = f"{self.base_url}&lat={lat}&lon={lon}"

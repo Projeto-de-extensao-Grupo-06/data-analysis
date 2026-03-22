@@ -2,70 +2,42 @@
 
 Este projeto implementa uma pipeline de processamento de dados de irradiação solar no estado de São Paulo, seguindo os princípios de **Clean Architecture** e o padrão **Strategy**.
 
-## Arquitetura
+## Estrutura do Projeto (Simplified)
 
-A aplicação está dividida em camadas para garantir separação de preocupações e testabilidade:
+Para evitar débito técnico e complexidade desnecessária, a pipeline foi simplificada em dois scripts principais:
 
-- **Domain**: Entidades de negócio (`SolarReading`, `Address`) e interfaces (contratos).
-- **Application**: Casos de uso (`CleanDataUseCase`, `RefineDataUseCase`) que contêm a lógica de transformação.
-- **Infrastructure**: Implementações específicas de armazenamento (`LocalStorageProvider`) e serviços externos (`OpenStreetService`).
-- **Entrypoints**: Pontos de entrada da aplicação (`main.py`).
-- **Data Governance**: Regras de qualidade e organização (`docs/`).
+1.  **raw_to_trusted.py**: Faz a limpeza inicial dos dados CSV, deduplicação, padronização de nomes para inglês e arredondamento para 1 casa decimal. Salva o resultado em JSON na camada TRUSTED.
+2.  **trusted_to_refined.py**: Realiza o enriquecimento geográfico (OpenStreetMap), calcula médias sazonais (summer, autumn, winter, spring) e garante que apenas registros com CEP e Bairro válidos sejam salvos na camada REFINED.
 
-### Estrutura do Projeto
-```text
-pipeline/
-├── domain/             # Entidades e Interfaces (Independente)
-├── application/        # Casos de Uso (Regra de Negócio)
-├── infrastructure/     # Implementações Técnicas (Desacoplado)
-│   ├── storage/        # Provedores (Local, S3)
-│   ├── geocoding/      # Serviços (OpenStreetMap/OpenStreet)
-│   └── execution/      # Estratégias (Polling, One-Shot)
-│   └── factory.py      # Injeção de Dependências
-└── main.py             # Entrypoint
-```
-
-## Camadas de Dados (Data Lake)
-
-1.  **RAW**: Recebe arquivos CSV brutos (ex: `tilted_latitude_means_SP.csv`).
-2.  **TRUSTED**: Dados limpos e convertidos para **JSON**, organizados por `MM-YYYY` e rastreados por `.processed`.
-3.  **REFINED**: Dados enriquecidos com endereço (OpenStreet) e métricas sazonais. **Regra mandatória:** Apenas registros com CEP (Postal Code) são persistidos.
-
-Arquivos em TRUSTED e REFINED seguem o padrão de nomenclatura com **Timestamps** para evitar sobreposição.
+> [!NOTE]
+> A implementação anterior em **Clean Architecture** foi movida para o diretório `architecture/clean-arch/` para referência futura.
 
 ## Como Executar
 
 ### Pré-requisitos
 - Python 3.10+
+- Bibliotecas: `pandas`, `python-dotenv`
 
 ### Instalação
 
-1.  **Criar ambiente virtual:**
-    ```bash
-    python -m venv venv
-    ```
-
-2.  **Ativar o ambiente virtual:**
+1.  **Ativar o ambiente virtual:**
     -   **Windows (PowerShell):** `.\venv\Scripts\Activate.ps1`
-    -   **Linux/macOS:** `source venv/bin/activate`
 
-3.  **Instalar dependências:**
+2.  **Instalar dependências:**
     ```bash
-    pip install -r requirements.txt
+    pip install pandas python-dotenv
     ```
 
-### Execução Local (Poller)
-O programa monitora a pasta `data/raw` a cada 1 minuto por novos arquivos `.csv`.
+### Execução dos Jobs
+
+A execução agora é feita através de scripts individuais:
 
 ```bash
-# Iniciar todos os jobs simultaneamente
-python -m pipeline.main --job all
+# 1. Processar dados brutos para a camada Trusted
+python raw_to_trusted.py
 
-# Executar apenas o tratamento RAW -> TRUSTED
-python -m pipeline.main --job raw-to-trusted
-
-# Executar apenas o refinamento TRUSTED -> REFINED
-python -m pipeline.main --job trusted-to-refined
+# 2. Refinar dados da camada Trusted para a camada Refined
+python trusted_to_refined.py
 ```
 
 ## Estratégia Dev vs Prod

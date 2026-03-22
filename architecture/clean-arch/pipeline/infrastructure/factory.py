@@ -2,7 +2,7 @@ import os
 from pipeline.domain.interfaces import StorageProvider, ExecutionStrategy, GeocodingService
 from pipeline.infrastructure.storage.local_storage import LocalStorageProvider
 from pipeline.infrastructure.storage.s3_storage import S3StorageProvider
-from pipeline.infrastructure.geocoding.nominatim_service import NominatimService
+from pipeline.infrastructure.geocoding.open_street_service import OpenStreetService
 from pipeline.infrastructure.execution.strategies import PollingExecutionStrategy, OneShotExecutionStrategy
 
 class InfrastructureFactory:
@@ -35,5 +35,5 @@ class InfrastructureFactory:
         """
         Retorna o serviço de geocodificação.
         """
-        user_agent = os.getenv("NOMINATIM_USER_AGENT", "SolarIrradiationPipeline/1.0")
-        return NominatimService(user_agent=user_agent)
+        user_agent = os.getenv("OPENSTREET_USER_AGENT", "SolarIrradiationPipeline/1.0")
+        return OpenStreetService(user_agent=user_agent)

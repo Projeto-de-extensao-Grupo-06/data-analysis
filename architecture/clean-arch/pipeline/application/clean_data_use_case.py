@@ -28,10 +28,12 @@ class CleanDataUseCase:
         clean_readings = []
         for r in readings:
             if r.id not in seen_ids:
-                r.annual = r.annual if r.annual is not None else 0.0
+                r.annual = round(r.annual, 1) if r.annual is not None else 0.0
                 for month in r.monthly_data:
                     if r.monthly_data[month] is None:
                         r.monthly_data[month] = 0.0
+                    else:
+                        r.monthly_data[month] = round(r.monthly_data[month], 1)
                 
                 clean_readings.append(r)
                 seen_ids.add(r.id)

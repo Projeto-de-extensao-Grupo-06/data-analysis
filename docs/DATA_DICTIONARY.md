@@ -20,9 +20,10 @@ Este documento descreve os campos e transformações em cada camada da pipeline.
 
 **Transformações:**
 - Conversão de CSV para JSON.
-- Deduplicação baseada no campo `ID`.
-- Tratamento de valores nulos (preenchimento com 0.0 para campos numéricos).
+- Deduplicação baseada no campo `id`.
+- Tratamento de valores nulo (preenchimento com 0.0 para campos numéricos).
 - Padronização de tipos (float para coordenadas e valores de irradiação).
+- **Arredondamento:** Todos os valores numéricos são arredondados para **1 casa decimal**.
 
 ## 3. Camada REFINED (Enriquecimento)
 **Formato:** JSON
@@ -32,15 +33,21 @@ Este documento descreve os campos e transformações em cada camada da pipeline.
 | :--- | :--- | :--- |
 | id | Identificador original | RAW |
 | lat / lon | Coordenadas Geográficas | RAW |
-| cidade | Cidade / Município / Vila | OpenStreet API |
-| bairro | Bairro / Distrito / Vilarejo | OpenStreet API |
-| rua | Nome da via / Estrada | OpenStreet API |
-| codigo_postal | CEP (Obrigatório) | OpenStreet API |
-| endereco_completo| String completa do endereço | OpenStreet API |
-| anual | Média anual de irradiação | RAW |
-| media_verao | Média (Jan, Fev, Dez) | Cálculo |
-| media_outono | Média (Mar, Abr, Mai) | Cálculo |
-| media_inverno | Média (Jun, Jul, Ago) | Cálculo |
-| media_primavera| Média (Set, Out, Nov) | Cálculo |
+| city | Cidade / Município / Vila | OpenStreet API |
+| suburb | Bairro / Distrito / Vilarejo | OpenStreet API |
+| road | Nome da via / Estrada | OpenStreet API |
+| postcode | CEP (Obrigatório) | OpenStreet API |
+| full_address| String completa do endereço | OpenStreet API |
+| annual | Média anual de irradiação | RAW |
+| {MONTH} | Médias mensais (JAN, FEB, etc.) | RAW |
+| summer_avg | Média (Jan, Fev, Dez) | Cálculo |
+| autumn_avg | Média (Mar, Abr, Mai) | Cálculo |
+| winter_avg | Média (Jun, Jul, Ago) | Cálculo |
+| spring_avg | Média (Set, Out, Nov) | Cálculo |
+
+**Regras de Negócio:**
+- Registros sem `postcode` são descartados.
+- Registros sem `suburb` são descartados.
+- Todas as médias calculadas são arredondadas para **1 casa decimal**.
 
 **Regra de Ouro:** Registros sem `codigo_postal` são descartados desta camada.
