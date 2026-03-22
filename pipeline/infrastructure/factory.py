@@ -1,9 +1,9 @@
 import os
 from pipeline.domain.interfaces import StorageProvider, ExecutionStrategy, GeocodingService
-from pipeline.infrastructure.local_storage import LocalStorageProvider
-from pipeline.infrastructure.s3_storage import S3StorageProvider
-from pipeline.infrastructure.nominatim_service import NominatimService
-from pipeline.infrastructure.strategies import PollingExecutionStrategy, OneShotExecutionStrategy
+from pipeline.infrastructure.storage.local_storage import LocalStorageProvider
+from pipeline.infrastructure.storage.s3_storage import S3StorageProvider
+from pipeline.infrastructure.geocoding.nominatim_service import NominatimService
+from pipeline.infrastructure.execution.strategies import PollingExecutionStrategy, OneShotExecutionStrategy
 
 class InfrastructureFactory:
     """

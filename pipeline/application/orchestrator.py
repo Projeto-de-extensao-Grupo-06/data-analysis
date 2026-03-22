@@ -21,50 +21,35 @@ class SolarPipelineOrchestrator(PipelineOrchestrator):
 
     def run_raw_to_trusted(self):
         """
-        Executa uma rodada de limpeza de novos arquivos na pasta RAW.
+        Coordena a limpeza de arquivos RAW pendentes.
         """
         try:
-            readings = self.storage.load_raw(self.raw_dir)
-            if readings:
-                self.clean_use_case.execute(self.raw_dir, self.trusted_dir)
+            pending_files = self.storage.list_pending_files(self.raw_dir, "*.csv")
+            
+            for file_path in pending_files:
+                print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] Processando RAW: {os.path.basename(file_path)}")
+                readings = self.storage.load_raw(file_path)
+                self.clean_use_case.execute_readings(readings, self.trusted_dir)
+                self.storage.mark_as_processed(file_path)
                 
-                new_files = [f for f in os.listdir(self.raw_dir) if f.endswith(".csv")]
-                for f in new_files:
-                    self.storage.mark_as_processed(os.path.join(self.raw_dir, f))
-                
+            if pending_files:
                 print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] RAW->TRUSTED concluído.")
         except Exception as e:
             print(f"Erro no Orchestrator (RAW->TRUSTED): {e}")
 
     def run_trusted_to_refined(self):
         """
-        Executa o refinamento. Varre a TRUSTED, processa cada arquivo novo e marca como processado.
+        Coordena o refinamento de arquivos TRUSTED pendentes.
         """
         try:
-            profile = os.getenv("PIPELINE_PROFILE", "dev").lower()
-            limit = 10 if profile == "dev" else None
+            pending_files = self.storage.list_pending_files(self.trusted_dir, "solar_data_trusted_*.json")
             
-            count = 0
-            for root, dirs, files in os.walk(self.trusted_dir):
-                processed_log = os.path.join(root, ".processed")
-                processed_files = set()
-                if os.path.exists(processed_log):
-                    with open(processed_log, 'r') as f:
-                        processed_files = {line.strip() for line in f}
+            for file_path in pending_files:
+                print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] Refinando: {os.path.basename(file_path)}")
+                self.refine_use_case.execute(file_path, self.refined_dir)
+                self.storage.mark_as_processed(file_path)
 
-                new_trusted = [f for f in files if f.startswith("solar_data_trusted_") and f.endswith(".json") and f not in processed_files]
-                
-                for f in new_trusted:
-                    file_path = os.path.join(root, f)
-                    print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] Refinando arquivo: {f}")
-                    
-                    self.refine_use_case.execute(file_path, self.refined_dir, limit=limit)
-                    
-                    self.storage.mark_as_processed(file_path)
-                    count += 1
-
-            if count > 0:
-                print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] TRUSTED->REFINED concluído ({count} arquivos).")
-                
+            if pending_files:
+                print(f"[{time.strftime('%H:%M:%S')}] [Orchestrator] TRUSTED->REFINED concluído.")
         except Exception as e:
             print(f"Erro no Orchestrator (TRUSTED->REFINED): {e}")

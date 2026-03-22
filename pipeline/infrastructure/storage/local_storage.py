@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import os
 import time
+import fnmatch
 from typing import List
 from pipeline.domain.interfaces import StorageProvider
 from pipeline.domain.entities import SolarReading, EnrichedSolarReading, Address
@@ -12,39 +13,52 @@ class LocalStorageProvider(StorageProvider):
     Seguindo regras de Data Governance: MM-YYYY e Timestamps.
     """
 
+    def list_pending_files(self, source_path: str, pattern: str) -> List[str]:
+        """
+        Lista arquivos recursivamente que dão match no padrão e não estão no .processed local.
+        """
+        pending = []
+        for root, dirs, files in os.walk(source_path):
+            processed_log = os.path.join(root, ".processed")
+            processed_files = set()
+            if os.path.exists(processed_log):
+                with open(processed_log, 'r') as f:
+                    processed_files = {line.strip() for line in f}
+
+            matches = [f for f in files if fnmatch.fnmatch(f, pattern) and f not in processed_files]
+            for f in matches:
+                pending.append(os.path.join(root, f))
+        
+        return pending
+
     def load_raw(self, source_path: str) -> List[SolarReading]:
         """
-        Carrega dados de arquivos CSV na pasta RAW usando pandas.
-        Ignora arquivos já marcados como processados no arquivo oculto .processed
+        Carrega dados de arquivos CSV. 
+        Suporta tanto caminho de arquivo quanto diretório (usando list_pending_files).
         """
+        if os.path.isfile(source_path):
+             return self._load_csv_file(source_path)
+        
         if not os.path.exists(source_path):
             return []
 
-        processed_log = os.path.join(source_path, ".processed")
-        processed_files = set()
-        if os.path.exists(processed_log):
-            with open(processed_log, 'r') as f:
-                processed_files = {line.strip() for line in f}
-
-        files = [f for f in os.listdir(source_path) if f.endswith('.csv') and f not in processed_files]
-        
+        pending = self.list_pending_files(source_path, "*.csv")
         all_readings = []
-        for f in files:
-            file_path = os.path.join(source_path, f)
-            print(f"[{time.strftime('%H:%M:%S')}] Lendo arquivo RAW: {f}")
-            df = pd.read_csv(file_path, sep=';', encoding='utf-8-sig')
-            
-            for _, row in df.iterrows():
-                monthly = {month: float(row[month]) for month in ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']}
-                all_readings.append(SolarReading(
-                    id=int(row['ID']),
-                    uf=row['UF'],
-                    lon=float(row['LON']),
-                    lat=float(row['LAT']),
-                    annual=float(row['ANNUAL']),
-                    monthly_data=monthly
-                ))
+        for f in pending:
+            all_readings.extend(self._load_csv_file(f))
         return all_readings
+
+    def _load_csv_file(self, file_path: str) -> List[SolarReading]:
+        """Helper para carregar um CSV individual."""
+        df = pd.read_csv(file_path, sep=';', encoding='utf-8-sig')
+        readings = []
+        for _, row in df.iterrows():
+            monthly = {month: float(row[month]) for month in ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']}
+            readings.append(SolarReading(
+                id=int(row['ID']), uf=row['UF'], lon=float(row['LON']), lat=float(row['LAT']),
+                annual=float(row['ANNUAL']), monthly_data=monthly
+            ))
+        return readings
 
     def save_trusted(self, readings: List[SolarReading], target_path: str):
         """
@@ -129,11 +143,11 @@ class LocalStorageProvider(StorageProvider):
         df.to_json(file_path, orient='records', indent=4, force_ascii=False)
         print(f"[{time.strftime('%H:%M:%S')}] Dados salvos na REFINED: {date_folder}/{file_name}")
 
-    def mark_as_processed(self, source_path: str):
+    def mark_as_processed(self, file_path: str):
         """
-        Registra o nome do arquivo no log oculto de processados.
+        Registra o nome do arquivo no log oculto de processados no diretório do arquivo.
         """
-        raw_dir = os.path.dirname(source_path)
+        directory = os.path.dirname(file_path)
         file_name = os.path.basename(source_path)
         processed_log = os.path.join(raw_dir, ".processed")
         

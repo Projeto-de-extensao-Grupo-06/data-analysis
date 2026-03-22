@@ -27,14 +27,20 @@ Este documento descreve os campos e transformações em cada camada da pipeline.
 ## 3. Camada REFINED (Enriquecimento)
 **Formato:** JSON
 
-**Campos Adicionais:**
+**Campos Oficiais:**
 | Campo | Descrição | Origem |
 | :--- | :--- | :--- |
-| location.address | Endereço detalhado (Rua, Bairro, Cidade, CEP) | Nominatim API |
-| irradiation.seasons | Médias calculadas por estação do ano | Cálculo Interno |
+| id | Identificador original | RAW |
+| lat / lon | Coordenadas Geográficas | RAW |
+| cidade | Cidade / Município / Vila | OpenStreet API |
+| bairro | Bairro / Distrito / Vilarejo | OpenStreet API |
+| rua | Nome da via / Estrada | OpenStreet API |
+| codigo_postal | CEP (Obrigatório) | OpenStreet API |
+| endereco_completo| String completa do endereço | OpenStreet API |
+| anual | Média anual de irradiação | RAW |
+| media_verao | Média (Jan, Fev, Dez) | Cálculo |
+| media_outono | Média (Mar, Abr, Mai) | Cálculo |
+| media_inverno | Média (Jun, Jul, Ago) | Cálculo |
+| media_primavera| Média (Set, Out, Nov) | Cálculo |
 
-**Cálculo das Estações (Hemisfério Sul):**
-- **Summer (Verão):** Dezembro, Janeiro, Fevereiro.
-- **Autumn (Outono):** Março, Abril, Maio.
-- **Winter (Inverno):** Junho, Julho, Agosto.
-- **Spring (Primavera):** Setembro, Outubro, Novembro.
+**Regra de Ouro:** Registros sem `codigo_postal` são descartados desta camada.

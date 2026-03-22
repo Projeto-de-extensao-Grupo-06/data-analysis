@@ -26,3 +26,11 @@ A camada RAW deve permanecer **imutável** e **bruta**.
 
 - **TRUSTED:** Dados limpos, tipados e salvos em JSON puro.
 - **REFINED:** Dados enriquecidos com geocodificação reversa (OpenStreetMap) e médias sazonais calculadas. Idioma oficial dos campos: **Português**.
+
+## 5. Qualidade dos Dados (Data Quality)
+
+Para garantir que a camada REFINED contenha apenas informações úteis para análise geoespacial:
+
+- **CEP Obrigatório:** Somente registros que possuam `codigo_postal` validado pela geocodificação são persistidos na REFINED.
+- **Rastreabilidade:** Cada execução gera um arquivo único (Timestamp), permitindo auditoria de quando e como o dado foi gerado.
+- **Processamento Individual:** Diferente da abordagem em lote (batch), cada arquivo na TRUSTED é processado e marcado individualmente, garantindo que falhas em um arquivo não impeçam o processamento de outros.

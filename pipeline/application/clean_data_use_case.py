@@ -15,17 +15,19 @@ class CleanDataUseCase:
 
     def execute(self, source_path: str, target_path: str):
         """
-        Executa o processo de limpeza: leitura, deduplicação, tratamento de nulos e persistência.
+        Executa o processo de limpeza completo para um caminho.
         """
-        # Carregamento
         readings = self.storage.load_raw(source_path)
-        
-        # Deduplicação por ID
+        self.execute_readings(readings, target_path)
+
+    def execute_readings(self, readings: List[SolarReading], target_path: str):
+        """
+        Executa o processo de limpeza em uma lista de entidades.
+        """
         seen_ids = set()
         clean_readings = []
         for r in readings:
             if r.id not in seen_ids:
-                # Tratamento de nulos
                 r.annual = r.annual if r.annual is not None else 0.0
                 for month in r.monthly_data:
                     if r.monthly_data[month] is None:
@@ -34,5 +36,5 @@ class CleanDataUseCase:
                 clean_readings.append(r)
                 seen_ids.add(r.id)
         
-        # Persistência na camada TRUSTED
-        self.storage.save_trusted(clean_readings, target_path)
+        if clean_readings:
+            self.storage.save_trusted(clean_readings, target_path)

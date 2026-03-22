@@ -28,8 +28,13 @@ class StorageProvider(ABC):
         pass
 
     @abstractmethod
-    def mark_as_processed(self, source_path: str):
-        """Marca o arquivo como processado para evitar re-processamento (sem mover o original)."""
+    def list_pending_files(self, source_path: str, pattern: str) -> List[str]:
+        """Lista arquivos que ainda não foram marcados como processados."""
+        pass
+
+    @abstractmethod
+    def mark_as_processed(self, file_path: str):
+        """Marca o arquivo como processado (ex: move ou log)."""
         pass
 
 class ExecutionStrategy(ABC):

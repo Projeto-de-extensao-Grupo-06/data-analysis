@@ -35,11 +35,19 @@ class S3StorageProvider(StorageProvider):
         """
         return []
 
-    def mark_as_processed(self, source_path: str):
+    def list_pending_files(self, source_path: str, pattern: str) -> List[str]:
+        """
+        Simula listagem de arquivos no S3.
+        """
+        print(f"[AWS S3] Listando arquivos pendentes em s3://{self.bucket}/{source_path} com padrão {pattern}")
+        # TODO - s3_client.list_objects_v2(...) e filtrar por metadata/tags
+        return []
+
+    def mark_as_processed(self, file_path: str):
         """
         Simula a marcação de metadados no S3 (Ex: Tagging ou prefixo).
         """
-        print(f"[AWS S3] Marcando s3://{self.bucket}/{source_path} como processado.")
+        print(f"[AWS S3] Marcando {file_path} como processado em s3://{self.bucket}")
 
     def _reading_to_dict(self, r: SolarReading) -> dict:
         return {}
