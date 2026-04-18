@@ -225,3 +225,57 @@ Direcao recomendada:
 
 Resultado esperado:
 - base pronta para criacao futura do `solar_lead_score`
+
+## 9. Proximos Passos
+
+### 1. Enriquecer com indicadores socioeconomicos
+Depois da camada `ibge`, o passo seguinte e usar o `ibge_city_code` para cruzar a base com indicadores externos.
+
+Indicadores sugeridos:
+- renda media ou proxy de renda
+- vulnerabilidade social
+- perfil domiciliar
+- caracteristicas urbanas e residenciais
+
+Objetivo:
+- adicionar contexto socioeconomico ao potencial solar ja calculado
+
+### 2. Criar uma camada de scoring
+Depois do enriquecimento socioeconomico, deve ser criada uma nova etapa para gerar um indice de potencial comercial por territorio.
+
+Sugestao de nome:
+- `ibge_to_scoring.py`
+- ou `business_scoring.py`
+
+Objetivo:
+- gerar um `solar_lead_score` para cada bairro/regiao
+
+Sugestao inicial de composicao do score:
+- 40% irradiacao solar
+- 30% renda ou proxy socioeconomica
+- 20% perfil residencial horizontal
+- 10% baixa vulnerabilidade social
+
+### 3. Produzir uma saida pronta para negocio
+Apos o score, a pipeline deve gerar uma camada final pronta para uso comercial.
+
+Possibilidades:
+- ranking de bairros
+- lista de territorios prioritarios
+- base pronta para dashboard
+- insumo para campanhas de marketing ou prospeccao
+
+Objetivo:
+- transformar a pipeline em uma ferramenta de apoio real para decisao comercial
+
+### 4. Evoluir a granularidade territorial
+No curto prazo, o municipio e uma boa chave oficial para integracao.
+
+No medio prazo, a base pode evoluir para:
+- setores censitarios
+- malhas territoriais mais detalhadas
+- cruzamentos mais proximos da realidade do bairro
+
+Objetivo:
+- aumentar a precisao do score
+- reduzir generalizacao excessiva no nivel municipal
