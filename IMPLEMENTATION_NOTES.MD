@@ -153,6 +153,47 @@ Observacao de implementacao:
 - o enriquecimento IBGE deve buscar os municipios por UF e fazer o match localmente pelo nome da cidade
 - essa abordagem e mais estavel do que consultar a API diretamente por nome do municipio
 
+### Por que o dado fica melhor apos `business_to_ibge.py`
+Antes da camada `ibge`, o registro da camada `business` ainda depende principalmente de campos textuais como cidade e estado.
+
+Isso funciona bem para leitura humana, mas nao e o ideal para integracao com bases publicas, pois nomes podem variar, conter acentos, abreviacoes ou diferencas de padronizacao.
+
+Depois do enriquecimento com IBGE, o registro passa a ter uma chave oficial de identificacao do municipio.
+
+Principal ganho:
+- o dado deixa de ser apenas um agrupamento comercial interno
+- passa a ser um registro com referencia oficial para cruzamento com outras bases publicas
+
+Beneficios praticos:
+- melhora a confiabilidade de joins com bases externas
+- reduz ambiguidade no nome da cidade
+- prepara a base para renda, vulnerabilidade social e futuros indicadores
+- facilita a criacao do `solar_lead_score`
+
+### Novos campos adicionados pela camada `ibge`
+
+`ibge_city_code`
+- codigo oficial do municipio no IBGE
+- principal chave de integracao com outras bases oficiais
+
+`ibge_city_name`
+- nome oficial do municipio encontrado na base do IBGE
+- usado para confirmar se o match foi feito corretamente
+
+`ibge_state_name`
+- nome do estado associado ao municipio identificado
+- melhora legibilidade e validacao do enriquecimento
+
+`ibge_state_acronym`
+- sigla oficial da unidade federativa
+- util para padronizacao e integracao futura
+
+`ibge_match_status`
+- informa se o cruzamento com o IBGE foi realizado com sucesso
+- exemplos:
+  - `matched`
+  - `not_found`
+
 ## 7. Proximo Objetivo de Negocio
 
 ### Identificar bairros com potencial de compra de energia solar
