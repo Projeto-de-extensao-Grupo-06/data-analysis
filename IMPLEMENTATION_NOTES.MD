@@ -52,7 +52,7 @@ Observacao para ambiente `dev`:
 ## 3. Nova Camada Analitica
 
 ### `refined_to_business.py`
-Nova etapa proposta para transformar a camada `refined` em uma visao de negocio.
+Nova etapa implementada para transformar a camada `refined` em uma visao de negocio.
 
 O que faz:
 - le os arquivos da camada `refined`
@@ -68,6 +68,10 @@ O que faz:
 Objetivo:
 - criar uma base mais util para decisoes comerciais
 - preparar os dados para ranking de bairros com potencial de compra de energia solar
+
+Status:
+- implementado
+- gera arquivos na camada `data/business`
 
 ## 4. Camada `business`
 
@@ -95,7 +99,61 @@ Resumo:
 - `refined`: dado enriquecido geograficamente
 - `business`: dado agregado para analise comercial
 
-## 6. Proximo Objetivo de Negocio
+## 6. Diferenca Entre as Camadas
+
+### `refined`
+Camada de enriquecimento tecnico e geografico.
+
+O que representa:
+- cada registro ainda e um ponto geografico individual
+- cada ponto possui coordenadas e informacoes territoriais associadas
+
+Objetivo:
+- responder onde esta o ponto
+- informar cidade, bairro, CEP e irradiacao daquele registro
+
+Uso principal:
+- mapas
+- geolocalizacao
+- analise territorial ponto a ponto
+
+### `business`
+Camada de agregacao comercial e analitica.
+
+O que representa:
+- varios pontos da camada `refined` sao agrupados por `state`, `city`, `suburb` e `postcode`
+- o foco deixa de ser o ponto individual e passa a ser o territorio
+
+Objetivo:
+- responder qual e o comportamento medio de irradiacao de um bairro/regiao
+- indicar quantos pontos sustentam aquele agrupamento
+
+Uso principal:
+- leitura comercial
+- ranking de bairros
+- preparacao para score de potencial
+
+### `ibge`
+Camada de enriquecimento institucional e socioeconomico.
+
+O que representa:
+- a base `business` passa a receber uma chave oficial de integracao com dados publicos
+- normalmente essa chave sera o codigo IBGE do municipio
+
+Objetivo:
+- permitir cruzamento com bases oficiais de renda, vulnerabilidade e indicadores censitarios
+- preparar a base para o calculo futuro do `solar_lead_score`
+
+Uso principal:
+- integracao com dados do IBGE
+- enriquecimento socioeconomico
+- etapa preparatoria para scoring
+
+Observacao de implementacao:
+- o enriquecimento IBGE deve buscar os municipios por UF e fazer o match localmente pelo nome da cidade
+- essa abordagem e mais estavel do que consultar a API diretamente por nome do municipio
+
+## 7. Proximo Objetivo de Negocio
 
 ### Identificar bairros com potencial de compra de energia solar
 
@@ -111,3 +169,18 @@ Estrategia atual:
 
 Objetivo final:
 - criar um ranking territorial de bairros com melhor potencial comercial para energia solar
+
+## 8. Proximo Passo Tecnico
+
+### Cruzamento com base territorial do IBGE
+Agora que a camada `business` foi criada, o proximo passo e enriquecer os bairros com informacoes territoriais e socioeconomicas.
+
+Objetivo:
+- associar cada bairro/cidade/CEP a uma unidade geografica que permita cruzamento com dados do IBGE
+
+Direcao recomendada:
+- usar malha territorial ou setor censitario do IBGE como base de referencia
+- preparar a camada `business` para receber indicadores como renda, perfil domiciliar e vulnerabilidade
+
+Resultado esperado:
+- base pronta para criacao futura do `solar_lead_score`
