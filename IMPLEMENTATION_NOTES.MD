@@ -240,6 +240,24 @@ Indicadores sugeridos:
 Objetivo:
 - adicionar contexto socioeconomico ao potencial solar ja calculado
 
+Implementacao recomendada:
+- criar uma nova etapa chamada `ibge_to_socioeconomic.py`
+- usar o `ibge_city_code` como chave principal de integracao
+- priorizar, em um primeiro momento, indicadores no nivel municipal
+
+Fontes sugeridas:
+- IBGE SIDRA para indicadores de renda e domicilios
+- IBGE Censo 2022 para caracteristicas urbanas e residenciais
+- Ipea/Atlas da Vulnerabilidade Social para vulnerabilidade social
+
+Resultado esperado:
+- nova camada com indicadores socioeconomicos prontos para composicao do score comercial
+
+Status atual:
+- etapa `ibge_to_socioeconomic.py` criada
+- estrutura pronta para ler `data/ibge` e gerar `data/socioeconomic`
+- integracoes SIDRA ainda devem ser refinadas com a definicao final das tabelas/variaveis
+
 ### 2. Criar uma camada de scoring
 Depois do enriquecimento socioeconomico, deve ser criada uma nova etapa para gerar um indice de potencial comercial por territorio.
 
