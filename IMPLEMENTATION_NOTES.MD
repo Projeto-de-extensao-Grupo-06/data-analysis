@@ -1,299 +1,438 @@
 # Implementation Notes
 
-Este documento registra as evolucoes da pipeline de dados do projeto Solarway, com foco em explicar de forma sucinta o objetivo de cada etapa e o motivo das novas implementacoes.
+Este documento resume a evolucao da pipeline de dados do projeto Solarway, explicando:
 
-## 1. ETL Base
+- o papel de cada etapa
+- o que entra e o que sai em cada camada
+- por que cada transformacao foi criada
+- o que pode ser extraido de negocio ao final do fluxo
 
-### `raw_to_trusted.py`
-Responsavel por transformar a base bruta (`raw`) em uma camada confiavel (`trusted`).
+## 1. Objetivo do Projeto
 
-O que faz:
-- le arquivos CSV da camada `raw`
-- remove duplicidades por `ID`
-- trata valores nulos em campos numericos
-- padroniza nomes de colunas
-- converte os dados para JSON
-- salva os arquivos na camada `trusted`
+O objetivo da pipeline e identificar territorios com potencial comercial para energia solar.
 
-Objetivo:
-- garantir que os dados brutos fiquem limpos e estruturados para a proxima etapa
+A ideia central nao e apenas saber onde existe boa irradiacao solar, mas sim encontrar regioes que combinem:
 
-### `trusted_to_refined.py`
-Responsavel por enriquecer os dados da camada `trusted` e gerar a camada `refined`.
+- bom potencial solar
+- contexto territorial consistente
+- capacidade socioeconomica
+- maior chance de conversao comercial
 
-O que faz:
-- le os arquivos JSON da camada `trusted`
-- realiza geocodificacao reversa com OpenStreetMap/Nominatim
-- obtem dados territoriais como cidade, bairro e CEP
-- calcula medias sazonais da irradiacao solar
-- salva a saida na camada `refined`
+Em termos praticos, o objetivo final e responder:
 
-Objetivo:
-- transformar coordenadas geograficas em contexto territorial util para analise
+- quais bairros ou regioes devem ser priorizados para prospeccao?
+- onde faz sentido investir marketing?
+- quais territorios combinam irradiacao com maior potencial de compra?
 
-## 2. Controle de Processamento
+## 2. Visao Geral do Fluxo
 
-### Arquivo `.processed`
-Arquivo de controle usado para registrar quais arquivos ja foram processados em cada etapa.
+Pipeline principal:
 
-Como funciona:
-- cada etapa da pipeline le o `.processed`
-- se o nome do arquivo ja estiver registrado, ele nao e processado novamente
-- ao final do processamento com sucesso, o nome do arquivo e adicionado ao `.processed`
-
-Objetivo:
-- evitar reprocessamento desnecessario
-- impedir geracao duplicada de arquivos
-- permitir execucao incremental da pipeline
-
-Observacao para ambiente `dev`:
-- para testar novamente um mesmo arquivo, pode ser necessario limpar ou editar manualmente o `.processed`
-
-## 3. Nova Camada Analitica
-
-### `refined_to_business.py`
-Nova etapa implementada para transformar a camada `refined` em uma visao de negocio.
-
-O que faz:
-- le os arquivos da camada `refined`
-- agrupa os registros por:
-  - estado
-  - cidade
-  - bairro
-  - CEP
-- calcula medias de irradiacao anual, mensal e sazonal
-- conta quantos pontos existem em cada agrupamento
-- salva a saida na camada `business`
-
-Objetivo:
-- criar uma base mais util para decisoes comerciais
-- preparar os dados para ranking de bairros com potencial de compra de energia solar
-
-Status:
-- implementado
-- gera arquivos na camada `data/business`
-
-## 4. Camada `business`
-
-### Finalidade
-A camada `business` nao substitui a ETL original.
-
-Ela existe para:
-- agregar os dados da camada `refined`
-- transformar dados tecnicos em indicadores territoriais
-- facilitar cruzamentos futuros com renda, imoveis, IPTU ou outros dados socioeconomicos
-
-Exemplo de uso:
-- identificar bairros com maior incidencia solar e maior potencial de compra
-
-## 5. Fluxo Atual da Pipeline
-
-### Ordem das etapas
 1. `raw_to_trusted.py`
 2. `trusted_to_refined.py`
 3. `refined_to_business.py`
+4. `business_to_ibge.py`
+5. `ibge_to_socioeconomic.py`
+6. `socioeconomic_to_scoring.py`
 
-Resumo:
-- `raw`: dado bruto
-- `trusted`: dado limpo
+Resumo do fluxo:
+
+- `raw`: dado bruto original
+- `trusted`: dado limpo e padronizado
 - `refined`: dado enriquecido geograficamente
-- `business`: dado agregado para analise comercial
+- `business`: dado agregado por territorio comercial
+- `ibge`: dado com chave oficial de integracao publica
+- `socioeconomic`: dado com contexto economico e urbano
+- `scoring`: dado priorizado para decisao comercial
 
-## 6. Diferenca Entre as Camadas
+## 3. Controle de Processamento
 
-### `refined`
-Camada de enriquecimento tecnico e geografico.
+### Arquivo `.processed`
 
-O que representa:
-- cada registro ainda e um ponto geografico individual
-- cada ponto possui coordenadas e informacoes territoriais associadas
+Cada etapa da pipeline usa um arquivo `.processed` para controlar quais arquivos ja foram processados.
 
-Objetivo:
-- responder onde esta o ponto
-- informar cidade, bairro, CEP e irradiacao daquele registro
+Como funciona:
 
-Uso principal:
-- mapas
-- geolocalizacao
-- analise territorial ponto a ponto
-
-### `business`
-Camada de agregacao comercial e analitica.
-
-O que representa:
-- varios pontos da camada `refined` sao agrupados por `state`, `city`, `suburb` e `postcode`
-- o foco deixa de ser o ponto individual e passa a ser o territorio
+- a etapa le os arquivos de entrada
+- consulta o `.processed`
+- ignora arquivos ja processados
+- registra no `.processed` os arquivos processados com sucesso
 
 Objetivo:
-- responder qual e o comportamento medio de irradiacao de um bairro/regiao
-- indicar quantos pontos sustentam aquele agrupamento
 
-Uso principal:
-- leitura comercial
-- ranking de bairros
-- preparacao para score de potencial
+- evitar reprocessamento desnecessario
+- impedir geracao duplicada de saidas
+- permitir execucao incremental da pipeline
 
-### `ibge`
-Camada de enriquecimento institucional e socioeconomico.
+Uso em `dev`:
 
-O que representa:
-- a base `business` passa a receber uma chave oficial de integracao com dados publicos
-- normalmente essa chave sera o codigo IBGE do municipio
+- para testar novamente, pode ser necessario limpar ou editar manualmente o `.processed`
 
-Objetivo:
-- permitir cruzamento com bases oficiais de renda, vulnerabilidade e indicadores censitarios
-- preparar a base para o calculo futuro do `solar_lead_score`
+## 4. Etapas do Pipeline
 
-Uso principal:
-- integracao com dados do IBGE
-- enriquecimento socioeconomico
-- etapa preparatoria para scoring
+## 4.1 `raw_to_trusted.py`
 
-Observacao de implementacao:
-- o enriquecimento IBGE deve buscar os municipios por UF e fazer o match localmente pelo nome da cidade
-- essa abordagem e mais estavel do que consultar a API diretamente por nome do municipio
+### Papel
+Transforma a base bruta em uma camada confiavel.
 
-### Por que o dado fica melhor apos `business_to_ibge.py`
-Antes da camada `ibge`, o registro da camada `business` ainda depende principalmente de campos textuais como cidade e estado.
+### Entrada
+- arquivos CSV em `data/raw`
 
-Isso funciona bem para leitura humana, mas nao e o ideal para integracao com bases publicas, pois nomes podem variar, conter acentos, abreviacoes ou diferencas de padronizacao.
+### O que faz
+- le o CSV bruto
+- remove duplicidades por `ID`
+- trata valores nulos em campos numericos
+- padroniza nomes de colunas
+- converte o formato para JSON
 
-Depois do enriquecimento com IBGE, o registro passa a ter uma chave oficial de identificacao do municipio.
+### Saida
+- arquivos JSON em `data/trusted`
 
-Principal ganho:
-- o dado deixa de ser apenas um agrupamento comercial interno
-- passa a ser um registro com referencia oficial para cruzamento com outras bases publicas
+### Objetivo
+- preparar os dados para consumo nas proximas etapas
 
-Beneficios praticos:
-- melhora a confiabilidade de joins com bases externas
-- reduz ambiguidade no nome da cidade
-- prepara a base para renda, vulnerabilidade social e futuros indicadores
-- facilita a criacao do `solar_lead_score`
+## 4.2 `trusted_to_refined.py`
 
-### Novos campos adicionados pela camada `ibge`
+### Papel
+Enriquece os registros com contexto geografico.
+
+### Entrada
+- arquivos JSON da camada `trusted`
+
+### O que faz
+- realiza geocodificacao reversa via OpenStreetMap/Nominatim
+- identifica cidade, bairro, CEP e endereco
+- calcula medias sazonais da irradiacao
+
+### Saida
+- arquivos JSON em `data/refined`
+
+### Objetivo
+- transformar coordenadas em informacao territorial utilizavel
+
+## 4.3 `refined_to_business.py`
+
+### Papel
+Transforma o dado tecnico em uma visao comercial agregada.
+
+### Entrada
+- arquivos JSON da camada `refined`
+
+### O que faz
+- agrupa registros por:
+  - `state`
+  - `city`
+  - `suburb`
+  - `postcode`
+- calcula medias de irradiacao anual, mensal e sazonal
+- conta quantos pontos compoem cada agrupamento
+
+### Saida
+- arquivos JSON em `data/business`
+
+### Objetivo
+- sair do nivel de ponto individual
+- passar para o nivel de territorio comercial
+
+### O que representa
+Cada registro da camada `business` representa um territorio agregado.
+
+Exemplo:
+
+- um bairro/cidade/CEP com media de irradiacao e volume de pontos associados
+
+## 4.4 `business_to_ibge.py`
+
+### Papel
+Adicionar uma chave oficial de integracao publica.
+
+### Entrada
+- arquivos JSON da camada `business`
+
+### O que faz
+- usa `city` e `state`
+- consulta a API de localidades do IBGE
+- identifica o municipio oficial
+- adiciona o codigo IBGE do municipio
+
+### Saida
+- arquivos JSON em `data/ibge`
+
+### Objetivo
+- permitir integracao segura com bases oficiais externas
+
+### Por que o dado fica melhor
+Antes da camada `ibge`, os registros dependem principalmente de texto, como:
+
+- nome da cidade
+- nome do estado
+
+Isso e bom para leitura humana, mas fragil para integracao.
+
+Depois da camada `ibge`, o registro passa a ter:
+
+- `ibge_city_code`
+
+Esse codigo funciona como chave oficial para cruzamento com dados publicos.
+
+### Campos adicionados
 
 `ibge_city_code`
 - codigo oficial do municipio no IBGE
-- principal chave de integracao com outras bases oficiais
 
 `ibge_city_name`
 - nome oficial do municipio encontrado na base do IBGE
-- usado para confirmar se o match foi feito corretamente
 
 `ibge_state_name`
-- nome do estado associado ao municipio identificado
-- melhora legibilidade e validacao do enriquecimento
+- nome do estado associado ao municipio
 
 `ibge_state_acronym`
-- sigla oficial da unidade federativa
-- util para padronizacao e integracao futura
+- sigla da unidade federativa
 
 `ibge_match_status`
-- informa se o cruzamento com o IBGE foi realizado com sucesso
-- exemplos:
-  - `matched`
-  - `not_found`
+- status do cruzamento com o IBGE
 
-## 7. Proximo Objetivo de Negocio
+## 4.5 `ibge_to_socioeconomic.py`
 
-### Identificar bairros com potencial de compra de energia solar
+### Papel
+Enriquecer cada registro com proxies socioeconomicos municipais.
 
-Estrategia atual:
-- consolidar a base por bairro + cidade + CEP
-- gerar indicadores medios por territorio
-- preparar a base para enriquecimentos futuros com:
-  - renda
-  - perfil imobiliario
-  - vulnerabilidade social
-  - dados municipais
-  - eventualmente IPTU, quando disponivel
+### Entrada
+- arquivos JSON da camada `ibge`
 
-Objetivo final:
-- criar um ranking territorial de bairros com melhor potencial comercial para energia solar
+### O que faz
+- usa `ibge_city_code` como chave
+- consulta tabelas do IBGE/SIDRA
+- adiciona proxies de renda, perfil domiciliar, urbanizacao e infraestrutura
 
-## 8. Proximo Passo Tecnico
+### Saida
+- arquivos JSON em `data/socioeconomic`
 
-### Cruzamento com base territorial do IBGE
-Agora que a camada `business` foi criada, o proximo passo e enriquecer os bairros com informacoes territoriais e socioeconomicas.
+### Objetivo
+- adicionar contexto economico e urbano ao potencial solar
 
-Objetivo:
-- associar cada bairro/cidade/CEP a uma unidade geografica que permita cruzamento com dados do IBGE
+### Proxies atualmente utilizados
 
-Direcao recomendada:
-- usar malha territorial ou setor censitario do IBGE como base de referencia
-- preparar a camada `business` para receber indicadores como renda, perfil domiciliar e vulnerabilidade
+`income_avg`
+- proxy de renda
+- calculada a partir de PIB municipal e populacao residente
 
-Resultado esperado:
-- base pronta para criacao futura do `solar_lead_score`
+`household_indicator_value`
+- proxy de perfil domiciliar
+- baseada em conexao domiciliar a internet
 
-## 9. Proximos Passos
+`urban_indicator_value`
+- proxy de urbanizacao
+- baseada na proporcao de domicilios urbanos
 
-### 1. Enriquecer com indicadores socioeconomicos
-Depois da camada `ibge`, o passo seguinte e usar o `ibge_city_code` para cruzar a base com indicadores externos.
+`sanitation_indicator_value`
+- proxy de infraestrutura
+- baseada na proporcao de domicilios com esgotamento por rede geral
 
-Indicadores sugeridos:
-- renda media ou proxy de renda
-- vulnerabilidade social
+### Campos de apoio tambem adicionados
+
+- `gdp_total`
+- `population_total`
+- `households_total_for_internet`
+- `households_with_internet`
+- `households_total_for_urban`
+- `urban_households`
+- `households_total_for_sanitation`
+- `households_with_sewage_network`
+
+### Observacao importante
+A vulnerabilidade social ainda esta pendente de integracao complementar, por exemplo com Ipea/Atlas.
+
+## 4.6 `socioeconomic_to_scoring.py`
+
+### Papel
+Gerar a ultima camada principal do pipeline analitico: o score comercial.
+
+### Entrada
+- arquivos JSON da camada `socioeconomic`
+
+### O que faz
+- normaliza os indicadores do lote
+- transforma cada indicador em score
+- compoe um score final ponderado
+- classifica prioridade comercial
+- gera ranking dos territorios
+
+### Saida
+- arquivos JSON em `data/scoring`
+
+### Objetivo
+- transformar dado tecnico e socioeconomico em priorizacao comercial
+
+### Pesos implementados atualmente
+
+- `45%` irradiacao solar
+- `25%` proxy economica
+- `15%` perfil domiciliar
+- `10%` urbanizacao
+- `5%` saneamento
+
+### Campos gerados
+
+`solar_score`
+- score do potencial solar
+
+`income_score`
+- score da proxy economica
+
+`household_score`
+- score do perfil domiciliar
+
+`urban_score`
+- score de urbanizacao
+
+`sanitation_score`
+- score de infraestrutura basica
+
+`solar_lead_score`
+- score final consolidado do territorio
+
+`lead_priority`
+- classificacao textual da prioridade
+
+`lead_rank`
+- posicao do territorio no ranking do lote
+
+## 5. Diferenca Entre as Camadas Analiticas
+
+### `refined`
+- foco tecnico e geografico
+- registro ainda e um ponto individual
+
+### `business`
+- foco comercial e territorial
+- registro vira um agrupamento por bairro/cidade/CEP
+
+### `ibge`
+- foco de integracao oficial
+- registro ganha codigo oficial do municipio
+
+### `socioeconomic`
+- foco em contexto economico e urbano
+- registro ganha proxies municipais de apoio ao score
+
+### `scoring`
+- foco em decisao comercial
+- registro ganha score, prioridade e ranking
+
+## 6. O Que Podemos Tirar Dos Dados Coletados
+
+Ao final do pipeline, principalmente na camada `scoring`, ja e possivel extrair metricas praticas de negocio.
+
+## 6.1 Ranking de territorios
+
+Com `lead_rank` e `solar_lead_score`, voce consegue identificar:
+
+- top bairros/regioes para prospeccao
+- territorios com melhor potencial comercial
+- lista de prioridade para o time comercial
+
+## 6.2 Segmentacao por prioridade
+
+Com `lead_priority`, e possivel separar territorios em faixas como:
+
+- alta
+- media alta
+- media
+- media baixa
+- baixa
+
+Isso ajuda a decidir:
+
+- onde investir primeiro
+- onde fazer abordagem mais agressiva
+- onde apenas monitorar
+
+## 6.3 Forca tecnica do potencial solar
+
+Com `solar_score`, e possivel entender:
+
+- quais territorios sao tecnicamente mais favoraveis
+- onde a irradiacao e realmente um diferencial forte
+
+## 6.4 Forca economica do municipio
+
+Com `income_score`, e possivel identificar:
+
+- municipios com melhor proxy de capacidade economica
+- territorios que podem sustentar ticket medio mais alto
+
+## 6.5 Perfil domiciliar e maturidade de consumo
+
+Com `household_score`, e possivel observar:
+
+- regioes com maior nivel de conexao domiciliar
+- territorios com sinal de maior maturidade estrutural
+
+## 6.6 Grau de urbanizacao
+
+Com `urban_score`, e possivel ver:
+
+- areas mais urbanizadas
+- municipios ou territorios com estrutura urbana mais consolidada
+
+## 6.7 Infraestrutura basica
+
+Com `sanitation_score`, e possivel medir:
+
+- infraestrutura minima urbana
+- qualidade territorial como proxy de organizacao urbana
+
+## 6.8 Analise combinada
+
+Com o `solar_lead_score`, voce consegue combinar:
+
+- potencial solar
+- potencial economico
 - perfil domiciliar
-- caracteristicas urbanas e residenciais
+- urbanizacao
+- infraestrutura
 
-Objetivo:
-- adicionar contexto socioeconomico ao potencial solar ja calculado
+Ou seja, o score final serve para responder:
 
-Implementacao recomendada:
-- criar uma nova etapa chamada `ibge_to_socioeconomic.py`
-- usar o `ibge_city_code` como chave principal de integracao
-- priorizar, em um primeiro momento, indicadores no nivel municipal
+- onde vender primeiro
+- onde vale investir marketing
+- quais bairros ou regioes tem maior chance de conversao
 
-Fontes sugeridas:
-- IBGE SIDRA para indicadores de renda e domicilios
-- IBGE Censo 2022 para caracteristicas urbanas e residenciais
-- Ipea/Atlas da Vulnerabilidade Social para vulnerabilidade social
+## 7. Como Isso Ajuda Na Pratica
 
-Resultado esperado:
-- nova camada com indicadores socioeconomicos prontos para composicao do score comercial
+Com o pipeline completo, o projeto deixa de ser apenas uma base tecnica de irradiacao e passa a ser uma ferramenta de apoio comercial.
 
-Status atual:
-- etapa `ibge_to_socioeconomic.py` criada
-- estrutura pronta para ler `data/ibge` e gerar `data/socioeconomic`
-- integracoes SIDRA ainda devem ser refinadas com a definicao final das tabelas/variaveis
+Aplicacoes praticas:
 
-### 2. Criar uma camada de scoring
-Depois do enriquecimento socioeconomico, deve ser criada uma nova etapa para gerar um indice de potencial comercial por territorio.
+- montar ranking de bairros prioritarios
+- orientar campanhas de trafego pago
+- apoiar planejamento comercial regional
+- filtrar territorios com maior chance de compra
+- identificar regioes boas tecnicamente, mas fracas economicamente
+- identificar regioes boas economicamente, mas com menor vantagem solar
 
-Sugestao de nome:
-- `ibge_to_scoring.py`
-- ou `business_scoring.py`
+## 8. Resumo Final
 
-Objetivo:
-- gerar um `solar_lead_score` para cada bairro/regiao
+O fluxo construido ate aqui transforma:
 
-Sugestao inicial de composicao do score:
-- 40% irradiacao solar
-- 30% renda ou proxy socioeconomica
-- 20% perfil residencial horizontal
-- 10% baixa vulnerabilidade social
+- coordenadas e irradiacao solar
 
-### 3. Produzir uma saida pronta para negocio
-Apos o score, a pipeline deve gerar uma camada final pronta para uso comercial.
+em:
 
-Possibilidades:
-- ranking de bairros
-- lista de territorios prioritarios
-- base pronta para dashboard
-- insumo para campanhas de marketing ou prospeccao
+- territorios agregados
+- municipios oficiais
+- contexto socioeconomico
+- score final de priorizacao comercial
 
-Objetivo:
-- transformar a pipeline em uma ferramenta de apoio real para decisao comercial
+Em termos de negocio, a pipeline agora permite:
 
-### 4. Evoluir a granularidade territorial
-No curto prazo, o municipio e uma boa chave oficial para integracao.
-
-No medio prazo, a base pode evoluir para:
-- setores censitarios
-- malhas territoriais mais detalhadas
-- cruzamentos mais proximos da realidade do bairro
-
-Objetivo:
-- aumentar a precisao do score
-- reduzir generalizacao excessiva no nivel municipal
+- priorizar bairros e regioes
+- embasar prospeccao com dados
+- reduzir decisao puramente intuitiva
+- preparar o terreno para evolucoes futuras, como:
+  - vulnerabilidade social real
+  - IPTU
+  - valor imobiliario
+  - dashboards
+  - integracao com CRM
